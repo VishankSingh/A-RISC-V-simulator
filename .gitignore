@@ -1,0 +1,8 @@
+.idea/
+.vscode/
+src/*.o
+design
+REPORT.md
+REPORT.pdf
+riscv_sim
+output.hex
