@@ -134,3 +134,12 @@ int is_regular_file(const char *path) {
     stat(path, &path_stat);
     return S_ISREG(path_stat.st_mode);
 }
+
+int is_file_empty(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    int ch;
+    while ((ch = fgetc(file)) != EOF) 
+        if (!isspace(ch))
+            return 0; 
+    return 1; 
+}

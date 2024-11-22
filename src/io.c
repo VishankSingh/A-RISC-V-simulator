@@ -45,28 +45,30 @@ char *read_line(char *filename, uint line_number) {
 }
 
 int count_lines_in_file(const char *filename) {
-    const size_t BUFFER_SIZE = 8194;
     FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        perror("Error opening file");
+    if (!file) {
+        perror("Could not open file");
         return -1;
     }
 
-    char buffer[BUFFER_SIZE];
-    int lines = 0;
-    size_t bytes_read;
+    int count = 0;
+    char ch;
+    int prev_char_was_newline = 1;  // Handles case where the file is empty or doesn't start with '\n'
 
-    // Read the file in chunks
-    while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, file)) > 0) {
-        // Count the number of newlines in the buffer
-        for (size_t i = 0; i < bytes_read; i++) {
-            if (buffer[i] == '\n') {
-                lines++;
-            }
+    while ((ch = fgetc(file)) != EOF) {
+        if (ch == '\n') {
+            count++;
+            prev_char_was_newline = 1;
+        } else {
+            prev_char_was_newline = 0;
         }
     }
-    lines++;  // Add one more line for the last line
+
+    // If the last character is not '\n' but file has content, count the last line
+    if (!prev_char_was_newline) {
+        count++;
+    }
 
     fclose(file);
-    return lines;
+    return count;
 }

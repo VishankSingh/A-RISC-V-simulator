@@ -38,6 +38,8 @@ vm_s *init_vm_s(char *filename) {
     vm->pc = 0x00000;
     vm->last_pc = vm->pc - 4;
     vm->call_stack = init_stack_s(CALL_STACK_SIZE);
+    vm->cache = init_cache();
+    disable_cache(vm->cache);
     return vm;
 }
 
@@ -48,12 +50,12 @@ void vm_reset(vm_s *vm, char *filename) {
     vm->input = init_input_s(MAX_INPUT_FILE_SIZE, vm->filename);
     reset_registers(vm->register_file);
     reset_memory(vm->memory);
-    for (int i = 0; i < MAX_BREAKPOINTS; i++) {
-        vm->breakpoints[i] = INT64_MAX;
-    }
     vm->pc = 0x00000;
     vm->last_pc = vm->pc - 4;
     vm->call_stack = init_stack_s(CALL_STACK_SIZE);
+    _Bool cache_status = vm->cache->enabled;
+    vm->cache = init_cache();
+    //if (cache_status) enable_cache(vm->cache, "cache.config", vm->cache->cache_output_file);
     error_code_ = 0;
     
 }
@@ -68,7 +70,7 @@ void add_breakpoint(vm_s *vm, uint64_t address) {
         }
     }
     if (!added) {
-        printf("Breakpoint limit reached\n");
+        return;
     }
 }
 
@@ -90,6 +92,14 @@ _Bool in_breakpoint(vm_s *vm, uint64_t address) {
     return 0;
 }
 
+void toggle_breakpoint(vm_s *vm, uint64_t address) {
+    if (in_breakpoint(vm, address)) {
+        remove_breakpoint(vm, address);
+    } else {
+        add_breakpoint(vm, address);
+    }
+}
+
 void vm_run(vm_s *vm, _Bool run) {
     if (run) {
         int i = 0;
@@ -99,11 +109,9 @@ void vm_run(vm_s *vm, _Bool run) {
         }
         if (vm->pc == vm->breakpoints[0]) {
             pop(vm->call_stack);
-            // printf("Execution complete\n");
             return;
         }
         if (in_breakpoint(vm, vm->pc)) {
-            printf("Execution stopped at breakpoint\n");
         }
     } else {
         if (vm->pc != vm->breakpoints[0])
@@ -156,75 +164,26 @@ void vm_execute_instruction(vm_s *vm, uint32_t instruction) {
     uint8_t funct6 = (instruction >> 30) & 0x3;
     uint8_t funct7 = (instruction >> 25) & 0x7F;
     if (vm->lookup_table->opcode_table[opcode_hash(opcode)] != NULL) {
-        // char *instr = &vm->input->file[(get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1) - 1) * 1024];
-        // char *if_colon = strchr(instr, ':');
-        // if (if_colon != NULL) {
-        //     instr = if_colon + 1;
-        // }
-        // while (*instr == ' ' || *instr == '\t') instr++;
-        // char *end = instr + strlen(instr) - 1;  
-        // while (end > instr && (*end == ' ' || *end == '\t')) {
-        //     *end = '\0';  
-        //     end--;
-        // }
-        // printf("Executed %s; PC=0x%08lx\n", instr, vm->pc);
         vm->call_stack->data[vm->call_stack->top].inst_num = vm->pc / 4 + 1;
         vm->call_stack->data[vm->call_stack->top].line_num = get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1);
         vm->lookup_table->opcode_table[opcode_hash(opcode)](instruction, vm);
     } 
     else if (vm->lookup_table->funct3_table[opcode_hash(opcode)][funct3] != NULL) {
-        //char *instr = &vm->input->file[(get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1) - 1) * 1024];
-        //char *if_colon = strchr(instr, ':');
-        //if (if_colon != NULL) {
-        //    instr = if_colon + 1;
-        //}
-        //while (*instr == ' ' || *instr == '\t') instr++;
-        //char *end = instr + strlen(instr) - 1;  
-        //while (end > instr && (*end == ' ' || *end == '\t')) {
-        //    *end = '\0';  
-        //    end--;
-        //}
-        //printf("Executed %s; PC=0x%08lx\n", instr, vm->pc);
         vm->call_stack->data[vm->call_stack->top].inst_num = vm->pc / 4 + 1;
         vm->call_stack->data[vm->call_stack->top].line_num = get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1);
         vm->lookup_table->funct3_table[opcode_hash(opcode)][funct3](instruction, vm);
     } 
     else if (vm->lookup_table->funct6_table[opcode_hash(opcode)][funct3][funct6] != NULL) {
-        //char *instr = &vm->input->file[(get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1) - 1) * 1024];
-        //char *if_colon = strchr(instr, ':');
-        //if (if_colon != NULL) {
-        //    instr = if_colon + 1;
-        //}
-        //while (*instr == ' ' || *instr == '\t') instr++;
-        //char *end = instr + strlen(instr) - 1;  
-        //while (end > instr && (*end == ' ' || *end == '\t')) {
-        //    *end = '\0';  
-        //    end--;
-        //}
-        //printf("Executed %s; PC=0x%08lx\n", instr, vm->pc);
         vm->call_stack->data[vm->call_stack->top].inst_num = vm->pc / 4 + 1;
         vm->call_stack->data[vm->call_stack->top].line_num = get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1);
         vm->lookup_table->funct6_table[opcode_hash(opcode)][funct3][funct6](instruction, vm);
     } 
     else if (vm->lookup_table->funct7_table[opcode_hash(opcode)][funct3][funct7_hash(funct7)] != NULL) {
-        //char *instr = &vm->input->file[(get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1) - 1) * 1024];
-        //char *if_colon = strchr(instr, ':');
-        //if (if_colon != NULL) {
-        //    instr = if_colon + 1;
-        //}
-        //while (*instr == ' ' || *instr == '\t') instr++;
-        //char *end = instr + strlen(instr) - 1;  
-        //while (end > instr && (*end == ' ' || *end == '\t')) {
-        //    *end = '\0';  
-        //    end--;
-        //}
-        //printf("Executed %s; PC=0x%08lx\n", instr, vm->pc);
         vm->call_stack->data[vm->call_stack->top].inst_num = vm->pc / 4 + 1;
         vm->call_stack->data[vm->call_stack->top].line_num = get_linenum_instnum(vm->input->lil_map, vm->pc / 4 + 1);
         vm->lookup_table->funct7_table[opcode_hash(opcode)][funct3][funct7_hash(funct7)](instruction, vm);
     } 
     else {
-        //printf("Invalid instruction\n");
         return;
     }
 }
@@ -461,7 +420,20 @@ void execute_lb(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint8_t value = read_memory(vm->memory, address);
+    int8_t value = 0;
+
+
+    if (vm->cache->enabled) {
+
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset];
+    }
+    else {
+        value = read_memory(vm->memory, address);
+    }
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -475,8 +447,20 @@ void execute_lh(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint16_t value = read_memory(vm->memory, address)
-                     | read_memory(vm->memory, address + 1) << 8;
+    int16_t value = 0;
+
+    if (vm->cache->enabled) {
+
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset] | data[byte_offset + 1] << 8;
+    }
+    else {
+        value = read_memory(vm->memory, address)
+                 | read_memory(vm->memory, address + 1) << 8;
+    }
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -490,10 +474,24 @@ void execute_lw(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint32_t value = read_memory(vm->memory, address)
-                     | read_memory(vm->memory, address + 1) << 8
-                     | read_memory(vm->memory, address + 2) << 16
-                     | read_memory(vm->memory, address + 3) << 24;
+    int32_t value = 0;
+
+    if (vm->cache->enabled) {
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset] | data[byte_offset + 1] << 8
+                 | data[byte_offset + 2] << 16 | data[byte_offset + 3] << 24;
+    }
+    else {
+        value = read_memory(vm->memory, address)
+                 | read_memory(vm->memory, address + 1) << 8
+                 | read_memory(vm->memory, address + 2) << 16
+                 | read_memory(vm->memory, address + 3) << 24;
+    }
+
+    
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -507,14 +505,29 @@ void execute_ld(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint64_t value = read_memory(vm->memory, address)
-                     | read_memory(vm->memory, address + 1) << 8
-                     | read_memory(vm->memory, address + 2) << 16
-                     | read_memory(vm->memory, address + 3) << 24
-                     | read_memory(vm->memory, address + 4) << 32
-                     | read_memory(vm->memory, address + 5) << 40
-                     | read_memory(vm->memory, address + 6) << 48
-                     | read_memory(vm->memory, address + 7) << 56;
+    int64_t value = 0;
+
+    if (vm->cache->enabled) {
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+
+
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        for (int i = 0; i < 8; i++) {
+            value |= data[byte_offset + i] << (i * 8);
+        }
+    }
+    else {
+        value = read_memory(vm->memory, address)
+                 | read_memory(vm->memory, address + 1) << 8
+                 | read_memory(vm->memory, address + 2) << 16
+                 | read_memory(vm->memory, address + 3) << 24
+                 | read_memory(vm->memory, address + 4) << 32
+                 | read_memory(vm->memory, address + 5) << 40
+                 | read_memory(vm->memory, address + 6) << 48
+                 | read_memory(vm->memory, address + 7) << 56;
+    }
+
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -528,7 +541,18 @@ void execute_lbu(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint8_t value = read_memory(vm->memory, address);
+
+    uint8_t value = 0;
+    if (vm->cache->enabled) {
+
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset];
+    }
+    else {
+        value = read_memory(vm->memory, address);
+    }
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -542,8 +566,20 @@ void execute_lhu(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint16_t value = read_memory(vm->memory, address)
-                     | read_memory(vm->memory, address + 1) << 8;
+    
+    uint16_t value = 0;
+
+    if (vm->cache->enabled) {
+
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset] | data[byte_offset + 1] << 8;
+    }
+    else {
+        value = read_memory(vm->memory, address)
+                 | read_memory(vm->memory, address + 1) << 8;
+    }
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -557,10 +593,24 @@ void execute_lwu(uint32_t instruction, vm_s *vm) {
         imm |= 0xFFFFF000;
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
-    uint32_t value = read_memory(vm->memory, address)
-                     | read_memory(vm->memory, address + 1) << 8
-                     | read_memory(vm->memory, address + 2) << 16
-                     | read_memory(vm->memory, address + 3) << 24;
+    
+    uint32_t value = 0;
+
+    if (vm->cache->enabled) {
+
+        uint8_t *data = access_cache(vm->cache, address, vm->memory, vm->cache->cache_output_file);
+        uint64_t byte_offset = address & ((1 << vm->cache->byte_offset_bits) - 1);
+        value = data[byte_offset] | data[byte_offset + 1] << 8
+                 | data[byte_offset + 2] << 16 | data[byte_offset + 3] << 24;
+    }
+    else {
+        value = read_memory(vm->memory, address)
+                 | read_memory(vm->memory, address + 1) << 8
+                 | read_memory(vm->memory, address + 2) << 16
+                 | read_memory(vm->memory, address + 3) << 24;
+    }
+
+
     write_registers(vm->register_file, rd, value);
     vm->last_pc = vm->pc;
     vm->pc += 4;
@@ -576,7 +626,17 @@ void execute_sb(uint32_t instruction, vm_s *vm) {
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
     uint8_t value = vm->register_file->reg_arr[rs2] & 0xFF;
-    write_memory(vm->memory, address, value, 1);
+
+    if (vm->cache->enabled) {
+        uint8_t *value_ptr = malloc(1 * sizeof(uint8_t));
+        value_ptr[0] = value;
+
+        write_cache(vm->cache, address, value_ptr, vm->memory, 1, vm->cache->cache_output_file);
+    }
+    else {
+        write_memory(vm->memory, address, value, 1);
+    }
+
     vm->last_pc = vm->pc;
     vm->pc += 4;
 }
@@ -591,8 +651,20 @@ void execute_sh(uint32_t instruction, vm_s *vm) {
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
     uint16_t value = vm->register_file->reg_arr[rs2] & 0xFFFF;
-    write_memory(vm->memory, address, value & 0xFF, 1);
-    write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
+
+    if (vm->cache->enabled) {
+        uint8_t *value_ptr = malloc(2 * sizeof(uint8_t));
+        for (int i = 0; i < 2; i++) {
+            value_ptr[i] = (value >> (i * 8)) & 0xFF;
+        }
+
+        write_cache(vm->cache, address, value_ptr, vm->memory, 2, vm->cache->cache_output_file);
+    }
+    else {
+        write_memory(vm->memory, address, value & 0xFF, 1);
+        write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
+    }
+
     vm->last_pc = vm->pc;
     vm->pc += 4;
 }
@@ -607,10 +679,22 @@ void execute_sw(uint32_t instruction, vm_s *vm) {
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
     uint32_t value = vm->register_file->reg_arr[rs2];
-    write_memory(vm->memory, address, value & 0xFF, 1);
-    write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
-    write_memory(vm->memory, address + 2, (value >> 16) & 0xFF, 1);
-    write_memory(vm->memory, address + 3, (value >> 24) & 0xFF, 1);
+
+    if (vm->cache->enabled) {
+        uint8_t *value_ptr = malloc(4 * sizeof(uint8_t));
+        for (int i = 0; i < 4; i++) {
+            value_ptr[i] = (value >> (i * 8)) & 0xFF;
+        }
+
+        write_cache(vm->cache, address, value_ptr, vm->memory, 4, vm->cache->cache_output_file);
+    }
+    else {
+        write_memory(vm->memory, address, value & 0xFF, 1);
+        write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
+        write_memory(vm->memory, address + 2, (value >> 16) & 0xFF, 1);
+        write_memory(vm->memory, address + 3, (value >> 24) & 0xFF, 1);
+    }
+
     vm->last_pc = vm->pc;
     vm->pc += 4;
 }
@@ -625,16 +709,27 @@ void execute_sd(uint32_t instruction, vm_s *vm) {
     }
     uint64_t address = vm->register_file->reg_arr[rs1] + imm;
     uint64_t value = vm->register_file->reg_arr[rs2];
+
+    if (vm->cache->enabled) {
+        uint8_t *value_ptr = malloc(8 * sizeof(uint8_t));
+        for (int i = 0; i < 8; i++) {
+            value_ptr[i] = (value >> (i * 8)) & 0xFF;
+        }
+        
+        write_cache(vm->cache, address, value_ptr, vm->memory, 8, vm->cache->cache_output_file);
+    }
+    else {
+        write_memory(vm->memory, address, value & 0xFF, 1);
+        write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
+        write_memory(vm->memory, address + 2, (value >> 16) & 0xFF, 1);
+        write_memory(vm->memory, address + 3, (value >> 24) & 0xFF, 1);
+        write_memory(vm->memory, address + 4, (value >> 32) & 0xFF, 1);
+        write_memory(vm->memory, address + 5, (value >> 40) & 0xFF, 1);
+        write_memory(vm->memory, address + 6, (value >> 48) & 0xFF, 1);
+        write_memory(vm->memory, address + 7, (value >> 56) & 0xFF, 1);
+    }
     
 
-    write_memory(vm->memory, address, value & 0xFF, 1);
-    write_memory(vm->memory, address + 1, (value >> 8) & 0xFF, 1);
-    write_memory(vm->memory, address + 2, (value >> 16) & 0xFF, 1);
-    write_memory(vm->memory, address + 3, (value >> 24) & 0xFF, 1);
-    write_memory(vm->memory, address + 4, (value >> 32) & 0xFF, 1);
-    write_memory(vm->memory, address + 5, (value >> 40) & 0xFF, 1);
-    write_memory(vm->memory, address + 6, (value >> 48) & 0xFF, 1);
-    write_memory(vm->memory, address + 7, (value >> 56) & 0xFF, 1);
     vm->last_pc = vm->pc;
     vm->pc += 4;
 }

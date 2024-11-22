@@ -5,11 +5,12 @@
  */
 
 #include "../include/main.h"
-#include "../include/stack.h"
+#include "../include/call_stack.h"
 
 #include "../include/globals.h"
 
 #include "../include/gui_interface.h"
+#include "../include/utils.h"
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -32,29 +33,34 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 void* gui_handler() {
     while(1) {
         pthread_mutex_lock(&mutex);
-        if (is_exit) {
-            pthread_mutex_unlock(&mutex);
 
-            end_gui();
-            refresh();
-            fflush(stdin);
-            fflush(stdout);
-            raise(SIGINT);
-            break;
-        }
         draw_top_menu();
         if (is_main) {
-            draw_code_window(vm->filename, vm);
+            draw_code_window(temp_file, vm);
             draw_register_window(vm);
+            draw_breakpoints_window(vm);
+            draw_stack_window(vm);
+            draw_cache_window(vm);
+            //draw_cache_details_window(vm);
+            //draw_art_window();
         }
         if (is_top_menu_load) {
             draw_load_dialog(input_buffer, input_index);
         }
-        if (is_top_menu_mem_show) {
+        else if (is_top_menu_mem_show) {
             draw_mem_show_dialog(input_buffer, input_index);
         }
         else if (is_mem_show) {
             draw_memory_window(vm);
+        }
+        else if (is_top_menu_mem_edit) {
+            draw_mem_edit_dialog(input_buffer, input_index);
+        }
+        else if (is_error_show) {
+            //draw_error_dialog(error_msg);
+        }
+        else if (is_cache_details_show) {
+            draw_cache_details_window(vm);
         }
         pthread_mutex_unlock(&mutex);
 
@@ -77,13 +83,61 @@ void* input_handler() {
         if (ch == KEY_MOUSE) {
             if (getmouse(&event) == OK) {
                 if (event.bstate == 2) /*click*/ {
-                    if (is_top_menu_load) {
+                    if (event.y == 1 && event.x >= 1 && event.x <= 4) {
+                        is_top_menu_load = 1;
+                        is_top_menu_mem_show = 0;
+                        is_top_menu_mem_edit = 0;
+                        is_cache_details_show = 0;
+                        is_input = 1;
+                        curs_set(1);
+                        refresh();
+                        wrefresh(load_dialog);
+                    } 
+                    else if (event.y == 1 && event.x >= 9 && event.x <= 16) {
+                        is_top_menu_load = 0;
+                        is_top_menu_mem_show = 1;
+                        is_top_menu_mem_edit = 0;
+                        is_cache_details_show = 0;
+                        is_input = 1;
+                        curs_set(1);
+                        refresh();
+                    } 
+                    else if (event.y == 1 && event.x >= 21 && event.x <= 28) {
+                        is_top_menu_load = 0;
+                        is_top_menu_mem_show = 0;
+                        is_top_menu_mem_edit = 1;
+                        is_cache_details_show = 0;
+                        is_input = 1;
+                        curs_set(1);
+                        refresh();
+                    } 
+                    else if (event.y == 1 && event.x >= 33 && event.x <= 36) {
+                        is_exit = 1;
+                        remove(temp_file);
+                        raise(SIGINT);
+                    } 
+                    else if (event.y == 1 && event.x >= 146 && event.x <= 157) {
+                        toggle_cache(vm->cache, vm->filename);
+                    }
+                    else if (event.y == 1 && event.x >= 162 && event.x <= 174) {
+                        is_top_menu_load = 0;
+                        is_top_menu_mem_show = 0;
+                        is_cache_details_show = 1;
+                        refresh();
+                    }
+                    else if (event.y == 1 && event.x >= 179 && event.x <= 194) {
+                        invalidate(vm->cache);
+                    }
+                    else if (event.y == 1 && event.x >= 199 && event.x <= 209) {
+                        cache_dump(vm->cache, "cache_dump.txt");
+                    }
+                    else if (is_top_menu_load) {
                         if (event.x == 133 && event.y == 21) {
                             is_top_menu_load = 0;
                             is_input = 0;
                             memset(input_buffer, 0, BUFFER_SIZE);
                             input_index = 0;
-                            //curs_set(0);
+                            curs_set(0);
                             refresh();
                             werase(load_dialog);
                             wrefresh(load_dialog);
@@ -95,43 +149,113 @@ void* input_handler() {
                             is_input = 0;
                             memset(input_buffer, 0, BUFFER_SIZE);
                             input_index = 0;
-                            //curs_set(0);
+                            curs_set(0);
                             refresh();
                             werase(mem_show_dialog);
                             wrefresh(mem_show_dialog);
+                        }
+                    }
+                    else if (is_top_menu_mem_edit) {
+                        if (event.x == 133 && event.y == 21) {
+                            is_top_menu_mem_edit = 0;
+                            is_input = 0;
+                            memset(input_buffer, 0, BUFFER_SIZE);
+                            input_index = 0;
+                            curs_set(0);
+                            refresh();
+                            werase(mem_edit_dialog);
+                            wrefresh(mem_edit_dialog);
                         }
                     }
                     else if (is_mem_show) {
                         if (event.x == 160 && event.y == 8) {
                             is_mem_show = 0;
                             is_input = 0;
+                            curs_set(0);
                             werase(memory_window);
                             wrefresh(memory_window);
                         }
                     }
-                    else {
-                        if (event.y == 1 && event.x >= 1 && event.x <= 4) {
-                            is_top_menu_load = 1;
-                            is_input = 1;
-                            //curs_set(1);
-                            refresh();
-                            wrefresh(load_dialog);
-
-                        } else if (event.y == 1 && event.x >= 9 && event.x <= 16) {
-                            is_top_menu_mem_show = 1;
-                            is_input = 1;
-                            //curs_set(1);
-                            refresh();
-                        } else if (event.y == 1 && event.x >= 21 && event.x <= 28) {
-                            is_top_menu_mem_edit = 1;
-                        } else if (event.y == 1 && event.x >= 33 && event.x <= 36) {
-                            is_exit = 1;
+                    else if (is_cache_details_show) {
+                        if (event.x == 121 && event.y == 21) {
+                            is_cache_details_show = 0;
+                            curs_set(0);
+                            werase(cache_details_window);
+                            wrefresh(cache_details_window);
                         }
+                    }
+                    
+                    else if (is_main) {
+                        if (!is_edit) {
+                            if (event.y <= 53 && event.y >= 6 && event.x >= 1 && event.x <= 8) {     
+                                int line_no = (event.y - 5) + code_print_start;
+                                int instruction_no = get_instnum_linenum(vm->input->lil_map, line_no);
+                                if (instruction_no != -1) {
+                                    uint64_t address = 0x00000 + 4 * (instruction_no - 1);
+                                    toggle_breakpoint(vm, address);                
+                                }
+
+                            }
+                            else if (event.y == 4 && event.x >= 122 && event.x <= 138) {
+                                curs_set(1);
+                                is_edit = 1;
+                            }
+                            else if (event.y == 21 && event.x >= 142 && event.x <= 151) {
+                                for (int i = 1; i < MAX_BREAKPOINTS; i++) {
+                                    vm->breakpoints[i] = INT64_MAX;
+                                }
+                            }
+                        } else if (is_edit) {
+                            if (event.y == 4 && event.x >= 132 && event.x <= 138) {
+                                is_edit = 0;
+                                curs_set(0);
+                                FILE *source = fopen(vm->filename, "r");
+                                FILE *dest = fopen(temp_file, "w");
+                                char c;
+                                while ((c = fgetc(source)) != EOF) {
+                                    fputc(c, dest);
+                                }
+                                fclose(source);
+                                fclose(dest);
+                                file_size = count_lines_in_file(temp_file);
+                            } 
+                            else if (event.y == 4 && event.x >= 120 && event.x <= 130) {
+                                is_edit = 0;
+                                curs_set(0);
+                                FILE *source = fopen(temp_file, "r");
+                                FILE *dest = fopen(vm->filename, "w");
+
+                                char c;
+                                while ((c = fgetc(source)) != EOF) {
+                                    fputc(c, dest);
+                                }
+                                    
+
+                                while ((c = fgetc(source)) != EOF) {
+                                    fputc(c, dest);
+                                }
+                                fclose(source);
+                                fclose(dest);
+                                vm_reset(vm, vm->filename);
+                                if (!is_file_empty(vm->filename)) {
+                                    assemble(output_file_, vm);
+                                }
+                                load_binary_instructions(vm->memory, vm->input->binary, vm->input->binary_index);
+                                vm->breakpoints[0] = 0x00000 + 4 * vm->input->binary_index;
+                                file_size = count_lines_in_file(vm->filename);
+                                int line_num = get_linenum_instnum(vm->input->lil_map, 1) - 1;
+                                lil_node_s node = {0, line_num, "main"};
+                                push(vm->call_stack, &node);
+                            }
+                        }
+                    }
+                    else {
+                        
                     }
 
 
                 }
-                else if (event.bstate == 65536) {
+                else if (event.bstate == 65536 && !is_edit && !is_input) {
                     if (is_top_menu_load) {
                     } 
                     else if (is_mem_show) {
@@ -145,7 +269,7 @@ void* input_handler() {
                     }
                     
                     
-                    else {
+                    else if (is_main) {
                         if (event.x > 0 && event.x < 2 * COLS / 3 && event.y > 3 && event.y < LINES - 3) {
                             if (code_print_start > 11) {
                                 code_print_start -= 10;
@@ -155,7 +279,7 @@ void* input_handler() {
                         }
                     }
                 }
-                else if (event.bstate == 2097152) {
+                else if (event.bstate == 2097152 && !is_edit && !is_input) {
                     if (is_top_menu_load) {
                     } 
                     else if (is_mem_show) {
@@ -170,10 +294,13 @@ void* input_handler() {
                     
                     else {
                         if (event.x > 0 && event.x < 2 * COLS / 3 && event.y > 3 && event.y < LINES - 3) {
-                            if (code_print_start + 4 + LINES - 10 < vm->input->size) {
-                                code_print_start += 10;
-                            } else {
-                                code_print_start = vm->input->size - 4 - LINES + 10;
+                            if (vm->input->size > (unsigned int)(4 + LINES - 11)) {
+
+                                if (code_print_start + 4 + LINES - 11 < vm->input->size) {
+                                    code_print_start += 10;
+                                } else {
+                                    code_print_start = vm->input->size - 4 - LINES + 11;
+                                }
                             }
                         }
                     }
@@ -185,12 +312,8 @@ void* input_handler() {
                     //wrefresh(top_menu);
                 }
             }
-        } else if (ch != ERR) {
-            if (ch == KEY_RESIZE) {
-                clear();
-                refresh();
-            }
-
+        } 
+        else if (ch != ERR) {
             if (is_input) {
                 if (ch == KEY_ENTER || ch == '\n') {
                     input_buffer[input_index] = '\0';
@@ -203,15 +326,38 @@ void* input_handler() {
                             
                             if (is_regular_file(input)) {
                                 vm_reset(vm, input);
-                                assemble(output_file_, vm);
+                                if (!is_file_empty(input)) {
+                                    assemble(output_file_, vm);
+                                }
+                                
+                                
+                                //assemble(output_file_, vm);
                                 load_binary_instructions(vm->memory, vm->input->binary, vm->input->binary_index);
-                                add_breakpoint(vm, 0x00000 + 4 * vm->input->binary_index);
-                                //if (error_code_) {
-                                //    continue;
-                                //}
-                                //int line_num = get_linenum_instnum(vm->input->lil_map, 1) - 1;
-                                //lil_node_s node = {0, line_num, "main"};
-                                //push(vm->call_stack, &node);
+                                vm->breakpoints[0] = 0x00000 + 4 * vm->input->binary_index;
+                                
+                                FILE *source = fopen(input, "r");
+                                FILE *dest = fopen(temp_file, "w");
+                                char c;
+                                while ((c = fgetc(source)) != EOF) {
+                                    fputc(c, dest);
+                                }
+                                fclose(source);
+                                fclose(dest);
+
+                                file_size = count_lines_in_file(temp_file);
+                                is_file_loaded = 1;
+                                curs_set(0);
+
+                                if (error_code_) {
+                                    continue;
+                                }
+                                int line_num = get_linenum_instnum(vm->input->lil_map, 1) - 1;
+                                lil_node_s node = {0, line_num, "main"};
+                                push(vm->call_stack, &node);
+                                code_print_start = 0;
+                                cursor_x = 0;
+                                cursor_y = 0;
+                                
                             }
                         }
                         is_top_menu_load = 0;
@@ -220,7 +366,8 @@ void* input_handler() {
                         //curs_set(0);
                         werase(load_dialog);
                         wrefresh(load_dialog);
-                    } else if (is_top_menu_mem_show) {
+                    } 
+                    else if (is_top_menu_mem_show) {
                         if (input[0] != '\0') {
                             if (is_valid_hexadecimal(input)) {
                                 mem_print_start = strtol(input, NULL, 16);
@@ -230,9 +377,25 @@ void* input_handler() {
                         is_top_menu_mem_show = 0;
                         is_input = 0;
                         input_index = 0;
-                        //curs_set(0);
+                        curs_set(0);
                         werase(mem_show_dialog);
                         wrefresh(mem_show_dialog);
+                    }
+                    else if (is_top_menu_mem_edit) {
+                        char *token = malloc(BUFFER_SIZE * sizeof(char));
+                        memcpy(token, input, BUFFER_SIZE);
+                        memset(input, 0, BUFFER_SIZE);
+                        token = strtok(token, " ");
+                        if (token != NULL) {
+                            uint64_t address = strtol(token, NULL, 16);
+                            token = strtok(NULL, " ");
+                            if (address > 0 && address <= MAX_MEMORY_SIZE && token != NULL) {
+                                uint64_t data = strtol(token, NULL, 16);
+                                token = strtok(NULL, " ");
+                                uint64_t bytes = strtol(token, NULL, 10);
+                                write_memory(vm->memory, address, data, bytes);
+                            }
+                        }
                     }
                 }
                 else if (ch == KEY_BACKSPACE) {
@@ -267,28 +430,100 @@ void* input_handler() {
                     }
                 }
             }
+            else if (is_edit) {
+                if (ch == KEY_ENTER || ch == '\n') {
+                    insert_newline();
+                }
+                else if (ch == KEY_BACKSPACE) {
+                    FILE *file = fopen(temp_file, "r+");
+                    handle_backspace(file);
+                    fclose(file);
+                    
+                }
+                else if (ch == ' ') {
+                    FILE *file = fopen(temp_file, "r+");
+                    handle_space(file);
+                    fclose(file);
+                }
+                else if (ch == KEY_LEFT) {
+                    if (cursor_x > 0) {
+                        cursor_x--;
+                    }
+                }
+                else if (ch == KEY_RIGHT) {
+                    handle_right();
+                }
+                else if (ch == KEY_UP) {
+                    if (cursor_y > 0) {
+                        cursor_y--;
+                        if (code_print_start > 0 && cursor_y < code_print_start) {
+                            code_print_start = cursor_y;
+                        } else if (cursor_y > code_print_start + LINES - 8) {
+                            code_print_start = cursor_y;
+                        }
+                    }
+                }
+                else if (ch == KEY_DOWN) {
+                    if (cursor_y < file_size) {
+                        cursor_y++;
+                        if (cursor_y > code_print_start + LINES - 8) {
+                            code_print_start = cursor_y - LINES + 8;
+                        } else if (cursor_y == code_print_start + LINES - 8) {
+                            code_print_start = cursor_y - LINES + 7;
+                        }
+                        
+                         else if (cursor_y < code_print_start) {
+                            code_print_start = cursor_y;
+                        }
+                    }
+                }
+                else if (ch >= 32 && ch <= 126) {
+                    FILE *file = fopen(temp_file, "r+");
+                    insert_char(file, ch);
+                    fclose(file);
+                }
+
+
+            }
             
             else if (ch == 'q') {
                 is_exit = 1;
+                remove(temp_file);
+                raise(SIGINT);
             } 
             else if (ch == 'l') {
                 if (is_top_menu_mem_show == 0 && is_mem_show == 0 && is_input == 0) {
-                    is_top_menu_load = 1;
-                    is_input = 1;   
+                    is_top_menu_mem_show = 1;
+                    is_input = 1;
+                    curs_set(1);
+                    refresh();
                 }
             } 
             else if (ch == 'm') {
                 if (is_top_menu_load == 0 && is_mem_show == 0 && is_input == 0) {
                     is_top_menu_mem_show = 1;
                     is_input = 1;
+                    curs_set(1);
+                    refresh();
                 }
             }
             else if (ch == 'r') {
-                vm_reset(vm, vm->filename);
-                assemble(output_file_, vm);
-                load_binary_instructions(vm->memory, vm->input->binary, vm->input->binary_index);
-                add_breakpoint(vm, 0x00000 + 4 * vm->input->binary_index);
+                if (is_regular_file(vm->filename) && !error_code_ && !(is_edit) && !is_input && !is_top_menu_load && !is_top_menu_mem_show && !is_top_menu_mem_edit) {
+                    vm_reset(vm, vm->filename);
+                    assemble(output_file_, vm);
+                    load_binary_instructions(vm->memory, vm->input->binary, vm->input->binary_index);
+                    vm->breakpoints[0] = 0x00000 + 4 * vm->input->binary_index;
+                    int line_num = get_linenum_instnum(vm->input->lil_map, 1) - 1;
+                    lil_node_s node = {0, line_num, "main"};
+                    push(vm->call_stack, &node);
+                }
+                
             } 
+            else if (ch == 'w' || ch == ' ') {
+                if (!error_code_ && !(is_edit) && !is_input && !is_top_menu_load && !is_top_menu_mem_show && !is_top_menu_mem_edit) {
+                    vm_run(vm, 1);
+                }
+            }
             else if (ch == KEY_UP) {
                 
             } 
@@ -296,13 +531,9 @@ void* input_handler() {
                 
             } 
             else if (ch == KEY_RIGHT || ch == 's') {
-                if (error_code_) {
-                    
+                if (!error_code_ && strcmp(vm->filename, "") != 0 && !(is_edit) && !is_input && !is_top_menu_load && !is_top_menu_mem_show && !is_top_menu_mem_edit) {
+                    vm_run(vm, 0);
                 }
-                else if (strcmp(vm->filename, "") == 0) {
-                    
-                }
-                vm_run(vm, 0);
             }
            
         

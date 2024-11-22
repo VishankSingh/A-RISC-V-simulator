@@ -118,7 +118,7 @@ _Bool tokenize_line(lexer_s *lexer) {
                 long long decimal_value;
                 if (is_valid_binary(token_name)) {
                     token_name += 2;
-                    decimal_value = strtol(token_name, NULL, 2);
+                    decimal_value = strtoull(token_name, NULL, 2);
                     sprintf(token_name, "%lld", decimal_value);
                 } else if (is_valid_hexadecimal(token_name)) {
                     token_name += 2;

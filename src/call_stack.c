@@ -1,5 +1,5 @@
 /**
- * File Name: stack.c
+ * File Name: call_stack.c
  * Author: Vishank Singh
  * Github: https://github.com/VishankSingh
  */
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "../include/stack.h"
+#include "../include/call_stack.h"
 #include "../include/globals.h"
 
 stack_s *init_stack_s(int size) {
