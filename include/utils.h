@@ -57,4 +57,6 @@ void print_32_bit_instruction(uint num);
 
 int is_regular_file(const char *path);
 
+int is_file_empty(const char *filename);
+
 #endif // UTILS_H

@@ -2,7 +2,8 @@
 .vscode/
 src/*.o
 design
-REPORT.md
+cache_dump.txt
+error.log
 REPORT.pdf
 riscv_sim
 output.hex

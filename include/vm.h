@@ -10,7 +10,8 @@
 #include "memory.h"
 #include "registers.h"
 #include "vm_input.h"
-#include "stack.h"
+#include "call_stack.h"
+#include "cache.h"
 
 struct VM;
 
@@ -33,6 +34,7 @@ typedef struct VM {
     uint64_t pc;
     int64_t last_pc;
     stack_s *call_stack;
+    cache_s *cache;
 } vm_s;
 
 vm_s *init_vm_s(char *filename);
@@ -46,6 +48,8 @@ void add_breakpoint(vm_s *vm, uint64_t address);
 void remove_breakpoint(vm_s *vm, uint64_t address);
 
 _Bool in_breakpoint(vm_s *vm, uint64_t address);
+
+void toggle_breakpoint(vm_s *vm, uint64_t address);
 
 void vm_run(vm_s *vm, _Bool run);
 

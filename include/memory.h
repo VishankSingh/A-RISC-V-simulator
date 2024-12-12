@@ -12,6 +12,7 @@
 
 typedef struct Memory {
     uint8_t *data;
+    uint8_t *change;
     size_t size;
     size_t data_index;
 } memory_s;
@@ -28,7 +29,7 @@ void load_binary_instructions(memory_s *memory, const uint32_t *binary, size_t i
 
 uint64_t read_memory(memory_s *memory, uint64_t address);
 
-uint32_t read_memory_bytes(memory_s *memory, uint64_t address, int bytes);
+uint64_t read_memory_bytes(memory_s *memory, uint64_t address, int bytes);
 
 uint32_t read_instruction(memory_s *memory, uint64_t address);
 

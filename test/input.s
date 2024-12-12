@@ -1,29 +1,34 @@
+.data
+.dword 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160
+.text
+
+lui x3, 0x10
+ld x4, 0(x3)
+ld x5, 8(x3)
+ld x6, 16(x3)
+ld x7, 24(x3)
+ld x8, 32(x3)
+ld x9, 40(x3)
+ld x10, 48(x3)
+ld x11, 56(x3)
+ld x12, 64(x3)
+ld x13, 72(x3)
+ld x14, 80(x3)
+ld x15, 88(x3)
+ld x16, 96(x3)
+ld x17, 104(x3)
+ld x18, 112(x3)
+ld x20, 120(x3)
+
+ld x21, 0(x3)
+ld x22, 8(x3)
+ld x23, 16(x3)
+ld x24, 24(x3)
+ld x25, 32(x3)
+
+sd x9, 8(x3)
+sd x10, 256(x3)
+sd x10, 264(x3)
 
 
 
-main: addi x10, x0, 2
-      lui sp, 0x50
-  	  jal x1, fact
-      beq x0, x0, exit
-fact: addi sp, sp, -16
-  	  sd x1, 8(sp)
-  	  sd x10, 0(sp)
-  	  addi x5, x10, -1
-  	  blt x0, x5, L1
-  	  addi x10, x0, 1
-  	  addi sp, sp, 16
-  	  jalr x0, 0(x1)
-L1:   addi x10, x10, -1
-  	  jal x1, fact
-  	  addi x6, x10, 0
-  	  ld x10, 0(sp)
-  	  ld x1, 8(sp)
-  	  addi sp, sp, 16
-      addi x20, x0, 0
-      addi x8, x0, 0
-mul:  add x8, x8, x6
-      addi x20, x20, 1
-      bne x20, x10, mul 
-      add x10, x8, x0
-      jalr x0, 0(x1)
-exit: add x0, x0, x0

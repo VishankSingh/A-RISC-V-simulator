@@ -1,24 +1,30 @@
 #starts at 0x10000000
 .data       
+
 #fp_exponent_bits - number of exponent bits. It should be 11 for double precision number
 #fp_mantissa_bits - number of mantissa bits. It should be 52 for double precision number
+
 .dword 11, 52
 
 #starts at 0x10000010
 #count_of_floating_pairs - tells the number of floating point pairs to be operated upon.
+
 .dword 1
 .dword 0xC000000000000000, 0x3FE0000000000000
 
 .text
+
 #The following line initializes register x3 with 0x10000000 
 #so that you can use x3 for referencing various memory locations. 
 lui sp, 0x50
 lui x3, 0x10
 #your code starts here
 
-addi s0, x3, 0x200  # s0 = where to put current number, 0x10000200
+addi s0, x3, 0x200  # s0 = where to put current number, 0x10000200 
+
 ld s1, 0(x3)  # s1 = 11, exponent bits
 ld s2, 8(x3)  # s2 = 52, mantissa bits
+
 
 ld s3, 16(x3) # s3 = counter = number of pairs
 addi x3, x3, 24  # x3 = 0x100000024, at first number
@@ -28,7 +34,7 @@ loop_main:
 beq s3, x0, exit # exit when counter (s3) = 0
 addi s3, s3, -1 
 
-
+# comment
 
 ld a0, 0(x3)    # num1
 ld a1, 8(x3)    # num2 
@@ -338,8 +344,9 @@ exit:
 
 
 
-    
-     
+
+
+
 #The final result should be in memory starting from address 0x10000200
 #The first dword location at 0x10000200 contains sum of input11, input12
 #The second dword location at 0x10000200 contains product of input11, input12

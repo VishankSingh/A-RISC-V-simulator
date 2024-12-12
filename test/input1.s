@@ -1,5 +1,6 @@
-addi x5, x5, 0
-lui x4, 0x10
-addi x5, x5, -1 
-sd x5, 2(x4) 
-addi x5, x5, 1
+.data
+.dword 0x1234567890abcdef
+
+.text
+lui x3, 0x10
+lbu x10, 0(x3)

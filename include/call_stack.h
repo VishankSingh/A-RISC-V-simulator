@@ -3,8 +3,8 @@
  * Author: Vishank Singh
  * Github: https://github.com/VishankSingh
  */
-#ifndef STACK_H
-#define STACK_H
+#ifndef CALL_STACK_H
+#define CALL_STACK_H
 
 #include "vm_input.h"
 
@@ -30,4 +30,4 @@ void print_stack(stack_s *stack);
 
 void free_stack(stack_s *stack);
 
-#endif // STACK_H
+#endif // CALL_STACK_H

@@ -8,8 +8,12 @@ addi x5,x0,0x20
 addi x5,x5, 0x40
 lui x3, 0x10
 lw x10, 0(x3)
-srli x10, x10, 4
-slli x10, x10, 4
+andi x10, x10, 0b1111
+
+slli x10, x10, 8
+slli x10, x10, 8
+
+
 
 # 007201b3
 # 00720863

@@ -10,7 +10,7 @@
 #include "memory.h"
 #include "registers.h"
 #include "vm_input.h"
-#include "stack.h"
+#include "call_stack.h"
 #include "globals.h"
 
 typedef struct instruction_info {

@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -I$(INCLUDE_DIR) -Wall -Wextra -std=c11 -g
-LDFLAGS = -lncurses
+LDFLAGS = -lncurses -lm
 
 SRC_DIR = src
 INCLUDE_DIR = include
